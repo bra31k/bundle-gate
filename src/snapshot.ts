@@ -15,9 +15,7 @@ export interface RouteSize {
 
 export interface ModuleDelta {
   source: string;
-  /** head - base */
   raw: number;
-  /** head - base */
   gz: number;
   baseGz: number;
   headGz: number;
@@ -46,7 +44,6 @@ function sumChunks(s: Snapshot, files: string[]): Size {
   return size;
 }
 
-/** Client bytes of a route, split into the gated eager set, async chunks and chunks in no group. */
 export function routeSize(s: Snapshot, route: string): RouteSize {
   const chunks = routeChunks(s, route);
   return {
@@ -56,7 +53,6 @@ export function routeSize(s: Snapshot, route: string): RouteSize {
   };
 }
 
-/** Bytes per normalised source over all chunks of one set of a route. */
 export function routeModules(s: Snapshot, route: string, set: "eager" | "async"): Map<string, Size> {
   const modules = new Map<string, Size>();
   for (const file of routeChunks(s, route)[set]) {
@@ -74,7 +70,6 @@ export function routeModules(s: Snapshot, route: string, set: "eager" | "async")
   return modules;
 }
 
-/** Per-source delta head - base, largest |gz| first; unchanged sources are left out. */
 export function diffModules(base: Map<string, Size>, head: Map<string, Size>): ModuleDelta[] {
   const zero: Size = { raw: 0, gz: 0 };
   const deltas: ModuleDelta[] = [];
@@ -94,13 +89,11 @@ export function diffModules(base: Map<string, Size>, head: Map<string, Size>): M
   );
 }
 
-/** Write a snapshot as JSON, gzip-compressed when the path ends with `.gz`. */
 export async function writeSnapshot(path: string, s: Snapshot): Promise<void> {
   const json = JSON.stringify(s);
   await writeFile(path, path.endsWith(".gz") ? await gzipAsync(json) : json);
 }
 
-/** Read a snapshot written by `writeSnapshot` (plain or gzip JSON) and check its shape. */
 export async function readSnapshot(path: string): Promise<Snapshot> {
   let data = await readFile(path);
   if (data[0] === 0x1f && data[1] === 0x8b) {

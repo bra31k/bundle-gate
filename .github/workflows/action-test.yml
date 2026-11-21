@@ -60,9 +60,8 @@ jobs:
           rm -rf "$repos"
           mkdir -p "$repos"
 
-          # name, then a command that edits the app inside the repo (run on the branch).
-          make_repo() {
-            local name="$1" edit="$2" dir="$repos/$1"
+          init_repo() {
+            local dir="$1"
             mkdir -p "$dir"
             git -C "$dir" init -q -b main
             git -C "$dir" config user.name bundle-gate-test
@@ -76,6 +75,12 @@ jobs:
             fi
             git -C "$dir" add -A
             git -C "$dir" commit -q -m base
+          }
+
+          # name, then a command that edits the app inside the repo (run on the branch).
+          make_repo() {
+            local name="$1" edit="$2" dir="$repos/$1"
+            init_repo "$dir"
             git -C "$dir" checkout -q -b change
             (cd "$dir/web" && "$edit")
             git -C "$dir" add -A
@@ -115,14 +120,44 @@ jobs:
             return 0
           }
 
+          edit_main_moved() {
+            sed -i 's/Cart: /Basket: /' app/shop/page.js
+            if git diff --quiet; then
+              echo "main edit changed nothing" >&2
+              return 1
+            fi
+          }
+
+          # main gets a commit B after the branch point A, then the PR branch (cut from A) is merged.
+          make_moved_repo() {
+            local dir="$repos/moved"
+            init_repo "$dir"
+            git -C "$dir" rev-parse HEAD > "$repos/moved-base-sha"
+            (cd "$dir/web" && edit_main_moved)
+            git -C "$dir" add -A
+            git -C "$dir" commit -q -m "main moves ahead"
+            git -C "$dir" checkout -q -b pr "$(cat "$repos/moved-base-sha")"
+            (cd "$dir/web" && edit_clean)
+            git -C "$dir" add -A
+            git -C "$dir" commit -q -m change
+            git -C "$dir" checkout -q main
+            git -C "$dir" merge -q --no-ff pr -m merge
+            test "$(git -C "$dir" rev-list --parents -n 1 HEAD | wc -w)" -eq 3
+            test "$(git -C "$dir" merge-base HEAD^1 HEAD^2)" = "$(cat "$repos/moved-base-sha")"
+            test "$(git -C "$dir" rev-parse HEAD^1)" != "$(cat "$repos/moved-base-sha")"
+            echo "moved: HEAD $(git -C "$dir" rev-parse --short HEAD), base A $(git -C "$dir" rev-parse --short "$(cat "$repos/moved-base-sha")")"
+          }
+
           make_repo clean edit_clean
           make_repo regress edit_regress
           make_repo same edit_same
+          make_moved_repo
 
           # A strict limit for scenario (c): any growth at all fails.
           printf '{ "rules": [ { "match": "**", "limit": "+0 B" } ] }\n' > "$RUNNER_TEMP/zero-growth.config.json"
 
           echo "dir=$repos" >> "$GITHUB_OUTPUT"
+          echo "moved-base-sha=$(cat "$repos/moved-base-sha")" >> "$GITHUB_OUTPUT"
           echo "zero-config=$RUNNER_TEMP/zero-growth.config.json" >> "$GITHUB_OUTPUT"
 
       # (a) clean PR: an unrelated string changes, the action must succeed.
@@ -186,6 +221,39 @@ jobs:
           done
           test "$found" = "yes" || { echo "artifact bundle-gate-analyzer-report not found" >&2; exit 1; }
 
+      # (b2) the same regression with base-mode first-parent. The artifact name is
+      # fixed and (b) already uploaded it, so a second upload in this run fails;
+      # the step is allowed to fail and only the outputs, which are set before
+      # the upload, and the commits it chose are asserted.
+      - name: Reset action output files
+        run: rm -f "$RUNNER_TEMP/bundle-gate.md" "$RUNNER_TEMP/base.json.gz" "$RUNNER_TEMP/head.json.gz"
+
+      - name: Regression PR, first-parent
+        id: regress-fp
+        continue-on-error: true
+        uses: ./
+        with:
+          working-directory: ${{ steps.repos.outputs.dir }}/regress/web
+          package: ${{ steps.pack.outputs.tarball }}
+          base-mode: first-parent
+          fail-on-breach: "false"
+
+      - name: Assert first-parent regression was detected
+        env:
+          BREACHED: ${{ steps.regress-fp.outputs.breached }}
+          EXIT_CODE: ${{ steps.regress-fp.outputs.exit-code }}
+          HEAD_SHA: ${{ steps.regress-fp.outputs.head-sha }}
+          BASE_SHA: ${{ steps.regress-fp.outputs.base-sha }}
+          REPO_DIR: ${{ steps.repos.outputs.dir }}/regress
+        run: |
+          set -euo pipefail
+          test "$BREACHED" = "true"
+          test "$EXIT_CODE" = "1"
+          test "$HEAD_SHA" = "$(git -C "$REPO_DIR" rev-parse HEAD)"
+          test "$BASE_SHA" = "$(git -C "$REPO_DIR" rev-parse HEAD^1)"
+          test -s "$RUNNER_TEMP/base.json.gz"
+          test -s "$RUNNER_TEMP/head.json.gz"
+
       # (c) same SHA twice: the branch commit is empty, so the delta must be zero.
       - name: Reset action output files
         run: rm -f "$RUNNER_TEMP/bundle-gate.md" "$RUNNER_TEMP/base.json.gz" "$RUNNER_TEMP/head.json.gz"
@@ -207,3 +275,32 @@ jobs:
           test "$BREACHED" = "false"
           test "$EXIT_CODE" = "0"
           test -s "$RUNNER_TEMP/bundle-gate.md"
+
+      # (d) main moved ahead: base must be the branch point A, not the new main tip.
+      - name: Reset action output files
+        run: rm -f "$RUNNER_TEMP/bundle-gate.md" "$RUNNER_TEMP/base.json.gz" "$RUNNER_TEMP/head.json.gz"
+
+      - name: Main moved ahead
+        id: moved
+        uses: ./
+        with:
+          working-directory: ${{ steps.repos.outputs.dir }}/moved/web
+          package: ${{ steps.pack.outputs.tarball }}
+
+      - name: Assert base is the merge base
+        env:
+          BREACHED: ${{ steps.moved.outputs.breached }}
+          EXIT_CODE: ${{ steps.moved.outputs.exit-code }}
+          BASE_SHA: ${{ steps.moved.outputs.base-sha }}
+          HEAD_SHA: ${{ steps.moved.outputs.head-sha }}
+          EXPECTED_BASE: ${{ steps.repos.outputs.moved-base-sha }}
+          REPO_DIR: ${{ steps.repos.outputs.dir }}/moved
+        run: |
+          set -euo pipefail
+          test "$BREACHED" = "false"
+          test "$EXIT_CODE" = "0"
+          test "$BASE_SHA" = "$EXPECTED_BASE"
+          test "$HEAD_SHA" = "$(git -C "$REPO_DIR" rev-parse HEAD^2)"
+          test -s "$RUNNER_TEMP/bundle-gate.md"
+          test -s "$RUNNER_TEMP/base.json.gz"
+          test -s "$RUNNER_TEMP/head.json.gz"

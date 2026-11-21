@@ -3,9 +3,7 @@ import { diffModules, routeModules, routeSize, type RouteSize } from "./snapshot
 import type { Config, Size, Snapshot } from "./types.ts";
 
 export interface DiffOptions {
-  /** |delta gz| below this many bytes is shown as unchanged (still judged with exact bytes). Default 100. */
   minChange?: number;
-  /** Module rows kept per route. Default 5. */
   top?: number;
 }
 
@@ -16,51 +14,34 @@ export interface DiffSide {
   commit?: string;
 }
 
-/**
- * Before/after bytes of one chunk set. `undefined` on the side where the route does not exist
- * (and, for the eager set of a "no-client" route, on a side without eager chunks).
- */
 export interface SizeChange {
   base?: Size;
   head?: Size;
-  /** head - base, gzip bytes (a missing side counts as 0 here; this is information only). */
   deltaGz: number;
 }
 
 export interface ModuleRow {
   source: string;
-  /** head - base */
   gz: number;
-  /** head - base */
   raw: number;
   baseGz: number;
   headGz: number;
 }
 
-/** "no-client": the route has no eager client chunks on at least one side (e.g. a route handler); never judged. */
 export type RouteKind = "changed" | "unchanged" | "new" | "removed" | "no-client";
 
 export interface RouteDiff {
   route: string;
-  /** Display category. "unchanged" means |delta| < minChange, not delta === 0. */
   kind: RouteKind;
-  /** Eager client JS + CSS: the gated metric (gzip bytes). */
   eager: SizeChange;
-  /** Async chunks, reported only. */
   async: SizeChange;
-  /** Client chunks in no group ("unattributed"), reported only. */
   other: SizeChange;
-  /** Eager growth in percent of base, `null` without a base or with base 0. */
   percent: number | null;
-  /** Label of the rule that judged the route, e.g. `rules[0] "/about"` or `default (+2%)`. Absent for removed and no-client routes. */
   rule?: string;
-  /** True when the rule is "ignore". */
   ignored: boolean;
   failed: boolean;
   failures: Failure[];
-  /** Failing and changed routes: top eager module deltas. New routes: heaviest head modules. */
   modules?: ModuleRow[];
-  /** Module rows left out by `top` (after dropping rows below minChange). */
   modulesHidden?: number;
 }
 
@@ -71,7 +52,6 @@ export interface DiffTotals {
   new: number;
   removed: number;
   unchanged: number;
-  /** Routes without eager client JS on some side, listed but not gated. */
   noClient: number;
 }
 
@@ -103,7 +83,6 @@ function side(s: Snapshot): DiffSide {
   return out;
 }
 
-/** Reasons why two snapshots cannot be compared; empty when they can. */
 export function incomparableReasons(base: Snapshot, head: Snapshot): string[] {
   const b = base.meta;
   const h = head.meta;
@@ -134,7 +113,6 @@ export function incomparableReasons(base: Snapshot, head: Snapshot): string[] {
   return reasons;
 }
 
-/** True when the route exists in the snapshot and lists eager client chunks. */
 function hasEager(s: Snapshot, route: string): boolean {
   return Object.hasOwn(s.routes, route) && s.routes[route]!.eager.length > 0;
 }
@@ -154,7 +132,6 @@ function toRow(d: { source: string; gz: number; raw: number; baseGz: number; hea
   return { source: d.source, gz: d.gz, raw: d.raw, baseGz: d.baseGz, headGz: d.headGz };
 }
 
-/** Compare two snapshots route by route and judge each route with the config's rules. */
 export function diffSnapshots(base: Snapshot, head: Snapshot, config: Config, opts: DiffOptions = {}): DiffResult {
   const minChange = opts.minChange ?? 100;
   const top = opts.top ?? 5;
@@ -175,8 +152,6 @@ export function diffSnapshots(base: Snapshot, head: Snapshot, config: Config, op
     const eagerBase = inBase && hasEager(base, route);
     const eagerHead = inHead && hasEager(head, route);
 
-    // A route without eager client chunks (e.g. a route handler) has no gated size on that
-    // side. It is never counted as zero: the route is listed, but not judged.
     if ((inBase && !eagerBase) || (inHead && !eagerHead)) {
       if (eagerBase || eagerHead) {
         warnings.push(`route ${route} has client assets in ${eagerBase ? "base" : "head"} only, not gated`);

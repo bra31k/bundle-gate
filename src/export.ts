@@ -1,6 +1,5 @@
 import type { ChunkPart, RouteChunks, Snapshot } from "./types.ts";
 
-/** A problem with the analyzer export or a stored snapshot. Never a reason to count a size as zero. */
 export class SnapshotError extends Error {
   override name = "SnapshotError";
 }
@@ -12,7 +11,6 @@ export interface SnapshotInfo {
   noMangling: boolean;
   createdAt: string;
   commit?: string;
-  /** Path of the app inside the project root, e.g. "apps/web/" in a monorepo. */
   appDirPrefix?: string;
 }
 
@@ -20,7 +18,6 @@ const CLIENT_PREFIX = "[client-fs]/";
 const SCHEMA_VERSION = 1;
 const EAGER_KINDS = new Set(["bootstrap", "render_dependent"]);
 
-/** Order-independent summary of one route's parts of one chunk, used to check that every route sees the same chunk. */
 interface Fingerprint {
   count: number;
   raw: number;
@@ -34,21 +31,14 @@ interface RouteState {
   eagerSet: Set<string>;
   async: string[];
   asyncSet: Set<string>;
-  /** Client chunks this route's part records reference, in first-seen order. */
   parts: Map<string, Fingerprint>;
 }
 
 interface ChunkBuild {
-  /** The route whose part records define this chunk's stored parts. */
   owner: string;
-  /** Source index -> merged part. */
   parts: Map<number, ChunkPart>;
 }
 
-/**
- * Turn the output of `next analyze export` (JSON Lines, schema_version 1) into a Snapshot.
- * Lines are processed one at a time; memory grows with the snapshot, not with the export.
- */
 export async function buildSnapshot(
   lines: Iterable<string> | AsyncIterable<string>,
   info: SnapshotInfo,
@@ -193,14 +183,12 @@ export async function buildSnapshot(
       }
 
       default:
-        // module, output and future record types carry nothing we measure.
         break;
     }
   }
 
   if (!sawMeta) throw new SnapshotError("analyzer export is empty");
 
-  // Every route must see a chunk with exactly the parts of the route that defined it.
   const reference = new Map<string, { route: string; fp: Fingerprint }>();
   for (const [route, state] of routes) {
     for (const [file, fp] of state.parts) {
@@ -247,10 +235,6 @@ export async function buildSnapshot(
   return { schemaVersion: 1, meta, sources, chunks: chunkOut, routes: routeOut };
 }
 
-/**
- * Normalise a `source_path` of a part record to a module key:
- * first-party paths relative to the app, "node_modules:<pkg>", "(runtime)" or "(unattributed)".
- */
 export function normalizeSource(sourcePath: string, appDirPrefix?: string): string {
   let path = stripDecorations(sourcePath);
 
@@ -273,7 +257,6 @@ export function normalizeSource(sourcePath: string, appDirPrefix?: string): stri
   return path;
 }
 
-/** Drop ident-style decorations the analyzer may append: "?query", " {...}", " <...>", " [...]", " (...)". */
 function stripDecorations(path: string): string {
   const query = path.indexOf("?");
   if (query !== -1) path = path.slice(0, query);
@@ -282,7 +265,6 @@ function stripDecorations(path: string): string {
   return path.trimEnd();
 }
 
-/** Cheap pre-check for record types we never read, so large module/output lines are not parsed. */
 function isSkippedRecord(line: string): boolean {
   return line.startsWith('{"type":"module"') || line.startsWith('{"type":"output"');
 }

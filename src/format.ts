@@ -2,7 +2,6 @@ import type { ComparedDiff, DiffResult, DiffSide, ModuleRow, RouteDiff } from ".
 import { formatBytes, formatDelta } from "./size.ts";
 
 export interface FormatOptions {
-  /** Show every route, including unchanged ones. */
   all: boolean;
 }
 
@@ -20,7 +19,6 @@ function nextLabel(result: DiffResult): string {
   return base.nextVersion === head.nextVersion ? base.nextVersion : `${base.nextVersion} -> ${head.nextVersion}`;
 }
 
-/** "node_modules:lodash" -> "lodash"; other sources unchanged. */
 export function displaySource(source: string): string {
   return source.startsWith("node_modules:") ? source.slice("node_modules:".length) : source;
 }
@@ -30,7 +28,6 @@ function percent(p: number | null): string {
   return `${p < 0 ? "-" : "+"}${Math.abs(p).toFixed(2)}%`;
 }
 
-/** Gated routes that get a line (or table row). No-client routes are listed separately. */
 function shown(r: RouteDiff, all: boolean): boolean {
   if (r.kind === "no-client") return false;
   return all || r.failed || r.kind !== "unchanged";
@@ -38,7 +35,6 @@ function shown(r: RouteDiff, all: boolean): boolean {
 
 const NO_CLIENT_NOTE = "no client JS (not gated)";
 
-/** Routes without client JS, listed only with --all. */
 function noClientRoutes(result: ComparedDiff, all: boolean): RouteDiff[] {
   return all ? result.routes.filter((r) => r.kind === "no-client") : [];
 }
@@ -57,7 +53,6 @@ function deltaText(r: RouteDiff): string {
   return formatDelta(r.eager.deltaGz);
 }
 
-/** Failure messages, with exact bytes when the rounded display value equals the limit. */
 function failureText(r: RouteDiff): string[] {
   return r.failures.map((f) => {
     const head = r.eager.head?.gz ?? 0;
@@ -69,7 +64,6 @@ function failureText(r: RouteDiff): string[] {
   });
 }
 
-/** Info line for async and unattributed changes of a shown route. */
 function extraText(r: RouteDiff, minChange: number): string | undefined {
   const parts: string[] = [];
   if (Math.abs(r.async.deltaGz) >= minChange) parts.push(`async ${formatDelta(r.async.deltaGz)}`);

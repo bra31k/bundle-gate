@@ -1,3 +1,4 @@
+import picomatch from "picomatch";
 import { formatBytes, formatDelta, parseSize } from "./size.ts";
 import type { Config, Limit, Rule, Term } from "./types.ts";
 
@@ -93,30 +94,28 @@ export function parseConfig(json: unknown): Config {
   return { rules };
 }
 
-function segments(path: string): string[] {
-  const s = path.startsWith("/") ? path.slice(1) : path;
-  return s === "" ? [] : s.split("/");
+const MATCH_OPTIONS = {
+  nobracket: true,
+  noextglob: true,
+  nobrace: true,
+  nonegate: true,
+  nocomment: true,
+  dot: true,
+} as const;
+
+const matchers = new Map<string, (route: string) => boolean>();
+
+function normalizePattern(pattern: string): string {
+  return pattern.startsWith("/") ? pattern : `/${pattern}`;
 }
 
-/**
- * Whole-route match. A pattern segment "*" matches exactly one segment, "**" matches
- * zero or more segments, everything else is literal (including [ ] ( ) and .).
- * Partial wildcards such as "a*" are NOT supported: a "*" inside a longer segment is literal.
- */
 export function matchRoute(pattern: string, route: string): boolean {
-  const pat = segments(pattern);
-  const rt = segments(route);
-  const walk = (p: number, r: number): boolean => {
-    if (p === pat.length) return r === rt.length;
-    const seg = pat[p];
-    if (seg === "**") {
-      for (let k = r; k <= rt.length; k++) if (walk(p + 1, k)) return true;
-      return false;
-    }
-    if (r === rt.length) return false;
-    return (seg === "*" || seg === rt[r]) && walk(p + 1, r + 1);
-  };
-  return walk(0, 0);
+  let matcher = matchers.get(pattern);
+  if (matcher === undefined) {
+    matcher = picomatch(normalizePattern(pattern), MATCH_OPTIONS);
+    matchers.set(pattern, matcher);
+  }
+  return matcher(route);
 }
 
 const DEFAULT_LIMIT: Limit = [{ kind: "growth-percent", maxPercent: 2 }];
@@ -141,7 +140,7 @@ export function judge(limit: Limit, base: number | undefined, head: number): Fai
       }
       continue;
     }
-    if (base === undefined) continue; // new route: growth terms do not apply
+    if (base === undefined) continue;
     const growth = head - base;
     if (t.kind === "growth") {
       if (growth > t.maxBytes) {
@@ -149,7 +148,6 @@ export function judge(limit: Limit, base: number | undefined, head: number): Fai
         failures.push({ term, message: `grew ${formatDelta(growth)}, limit ${term}` });
       }
     } else {
-      // growth * 100 > base * P, scaled to integers (P to 3 decimals)
       const fails = growth > 0 && growth * 100000 > base * Math.round(t.maxPercent * 1000);
       if (fails) {
         const term = `+${t.maxPercent}%`;
@@ -161,10 +159,8 @@ export function judge(limit: Limit, base: number | undefined, head: number): Fai
   return failures;
 }
 
-/** True for a pattern that matches every route: its only segment is "**" ("**" and "/**"). */
 function isCatchAll(pattern: string): boolean {
-  const seg = segments(pattern);
-  return seg.length === 1 && seg[0] === "**";
+  return normalizePattern(pattern) === "/**";
 }
 
 export function lintRules(config: Config, routes: string[]): string[] {

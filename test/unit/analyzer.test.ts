@@ -18,10 +18,6 @@ import { SnapshotError } from "../../src/export.ts";
 
 const fixture = fileURLToPath(new URL("../fixtures/export-edge.jsonl", import.meta.url));
 
-/**
- * A stand-in for `next/dist/bin/next`: `analyze -o --snapshot <n>` writes metadata.json,
- * `analyze export` prints a fixture (or fails when FAKE_EXPORT_FAIL is set).
- */
 const FAKE_NEXT = `
 const fs = require("node:fs");
 const path = require("node:path");

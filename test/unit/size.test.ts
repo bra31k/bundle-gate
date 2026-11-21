@@ -22,8 +22,8 @@ describe("parseSize", () => {
   test("decimals round to the nearest byte", () => {
     assert.equal(parseSize("1.5 KB"), 1536);
     assert.equal(parseSize("0.5 KB"), 512);
-    assert.equal(parseSize("1.0004 KB"), 1024); // 1024.4096
-    assert.equal(parseSize("1.0006 KB"), 1025); // 1024.6144
+    assert.equal(parseSize("1.0004 KB"), 1024);
+    assert.equal(parseSize("1.0006 KB"), 1025);
   });
 
   test("rejects bare numbers, negatives, empty and unknown units", () => {
@@ -38,33 +38,33 @@ describe("parseSize", () => {
 });
 
 describe("formatBytes", () => {
-  test("matches the analyzer format", () => {
+  test("binary units with KiB, MiB and GiB labels and dropped trailing zeros", () => {
     assert.equal(formatBytes(0), "0 B");
     assert.equal(formatBytes(1), "1 B");
+    assert.equal(formatBytes(512), "512 B");
     assert.equal(formatBytes(1023), "1023 B");
-    assert.equal(formatBytes(1024), "1.00 KB");
-    assert.equal(formatBytes(156467), "152.80 KB");
-    assert.equal(formatBytes(1048576), "1.00 MB");
-    assert.equal(formatBytes(1073741824), "1.00 GB");
-    assert.equal(formatBytes(3 * 1073741824), "3.00 GB");
+    assert.equal(formatBytes(1024), "1 KiB");
+    assert.equal(formatBytes(1536), "1.5 KiB");
+    assert.equal(formatBytes(25078), "24.49 KiB");
+    assert.equal(formatBytes(1048576), "1 MiB");
+    assert.equal(formatBytes(1073741824), "1 GiB");
+    assert.equal(formatBytes(3 * 1073741824), "3 GiB");
+    assert.equal(formatBytes(5e9), "4.65 GiB");
   });
 
-  test("the unit is chosen after rounding", () => {
-    assert.equal(formatBytes(1023), "1023 B");
-    assert.equal(formatBytes(1024), "1.00 KB");
-    assert.equal(formatBytes(1048575), "1.00 MB");
-    // 1048570 B = 1023.994 KB stays in KB, 1048571 B = 1023.995 KB rounds up to 1.00 MB.
-    assert.equal(formatBytes(1048570), "1023.99 KB");
-    assert.equal(formatBytes(1048571), "1.00 MB");
-    assert.equal(formatBytes(1073741823), "1.00 GB");
-    // GB is the last unit.
-    assert.equal(formatBytes(1024 ** 4), "1024.00 GB");
-    assert.equal(formatBytes(-1048575), "-1.00 MB");
+  test("the last digit is truncated, so values just below a unit boundary stay in the lower unit", () => {
+    assert.equal(formatBytes(25077), "24.48 KiB");
+    assert.equal(formatBytes(1048570), "1023.99 KiB");
+    assert.equal(formatBytes(1048571), "1023.99 KiB");
+    assert.equal(formatBytes(1048575), "1023.99 KiB");
+    assert.equal(formatBytes(1048576), "1 MiB");
+    assert.equal(formatBytes(1073741823), "1023.99 MiB");
   });
 
   test("negative values", () => {
     assert.equal(formatBytes(-5), "-5 B");
-    assert.equal(formatBytes(-2048), "-2.00 KB");
+    assert.equal(formatBytes(-2048), "-2 KiB");
+    assert.equal(formatBytes(-1048575), "-1023.99 KiB");
   });
 });
 
@@ -73,9 +73,10 @@ describe("formatDelta", () => {
     assert.equal(formatDelta(0), "+0 B");
     assert.equal(formatDelta(12), "+12 B");
     assert.equal(formatDelta(-12), "-12 B");
-    assert.equal(formatDelta(40 * 1024), "+40.00 KB");
-    assert.equal(formatDelta(-40 * 1024), "-40.00 KB");
-    assert.equal(formatDelta(1048575), "+1.00 MB");
-    assert.equal(formatDelta(-1048575), "-1.00 MB");
+    assert.equal(formatDelta(40 * 1024), "+40 KiB");
+    assert.equal(formatDelta(-40 * 1024), "-40 KiB");
+    assert.equal(formatDelta(1048575), "+1023.99 KiB");
+    assert.equal(formatDelta(-1048575), "-1023.99 KiB");
+    assert.equal(formatDelta(1048576), "+1 MiB");
   });
 });

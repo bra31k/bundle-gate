@@ -116,9 +116,22 @@ describe("matchRoute", () => {
     assert.equal(matchRoute("/*/edit", "/post/edit"), true);
   });
 
-  test("partial wildcards are literal", () => {
-    assert.equal(matchRoute("/a*", "/a*"), true);
-    assert.equal(matchRoute("/a*", "/abc"), false);
+  test("* also works inside a segment and never crosses a slash", () => {
+    assert.equal(matchRoute("/blog-*", "/blog-post"), true);
+    assert.equal(matchRoute("/blog-*", "/blog"), false);
+    assert.equal(matchRoute("/blog-*", "/blog/post"), false);
+    assert.equal(matchRoute("/*-draft", "/x-draft"), true);
+  });
+
+  test("? matches one character", () => {
+    assert.equal(matchRoute("/a?", "/ab"), true);
+    assert.equal(matchRoute("/a?", "/abc"), false);
+  });
+
+  test("a pattern without a leading slash is rooted", () => {
+    assert.equal(matchRoute("blog/*", "/blog/x"), true);
+    assert.equal(matchRoute("*", "/blog"), true);
+    assert.equal(matchRoute("*", "/blog/x"), false);
   });
 
   test("** is zero or more segments", () => {
@@ -191,13 +204,13 @@ describe("judge", () => {
     assert.deepEqual(judge(limit, 1000, 1000 + 30 * KB), []);
     const f = judge(limit, 1000, 1000 + 30 * KB + 1);
     assert.equal(f.length, 1);
-    assert.equal(f[0]!.term, "+30.00 KB");
-    assert.equal(f[0]!.message, "grew +30.00 KB, limit +30.00 KB");
+    assert.equal(f[0]!.term, "+30 KiB");
+    assert.equal(f[0]!.message, "grew +30 KiB, limit +30 KiB");
   });
 
   test("growth message", () => {
     const f = judge(parseLimit("+30 KB"), 100_000, 100_000 + 40 * KB);
-    assert.equal(f[0]!.message, "grew +40.00 KB, limit +30.00 KB");
+    assert.equal(f[0]!.message, "grew +40 KiB, limit +30 KiB");
   });
 
   test("shrinking and unchanged never fail growth terms", () => {
@@ -208,21 +221,19 @@ describe("judge", () => {
   });
 
   test("percent boundary with an odd base", () => {
-    // base 1001, +2%: limit is 20.02 bytes -> growth 20 passes, 21 fails
     const limit = parseLimit("+2%");
     assert.deepEqual(judge(limit, 1001, 1001 + 20), []);
     const f = judge(limit, 1001, 1001 + 21);
     assert.equal(f.length, 1);
     assert.equal(f[0]!.term, "+2%");
     assert.match(f[0]!.message, /^grew \+21 B \(\+2\.10%\), limit \+2%$/);
-    // exact: base 50, +2% -> 1 byte allowed exactly
     assert.deepEqual(judge(limit, 50, 51), []);
     assert.equal(judge(limit, 50, 52).length, 1);
   });
 
   test("percent with decimals", () => {
     const limit = parseLimit("+2.5%");
-    assert.deepEqual(judge(limit, 4000, 4100), []); // exactly 2.5%
+    assert.deepEqual(judge(limit, 4000, 4100), []);
     assert.equal(judge(limit, 4000, 4101).length, 1);
     assert.equal(judge(limit, 4000, 4101)[0]!.term, "+2.5%");
   });
@@ -240,21 +251,21 @@ describe("judge", () => {
     assert.deepEqual(judge(limit, 1, 400 * KB), []);
     const f = judge(limit, 1, 400 * KB + 1);
     assert.equal(f.length, 1);
-    assert.equal(f[0]!.term, "<= 400.00 KB");
-    assert.match(f[0]!.message, /limit <= 400\.00 KB/);
+    assert.equal(f[0]!.term, "<= 400 KiB");
+    assert.match(f[0]!.message, /limit <= 400 KiB/);
   });
 
   test("new route: only max-size applies", () => {
     const limit = parseLimit("+1 B, +1%, <= 100 KB");
     assert.deepEqual(judge(limit, undefined, 100 * KB), []);
     const f = judge(limit, undefined, 100 * KB + 1);
-    assert.deepEqual(f.map((x) => x.term), ["<= 100.00 KB"]);
+    assert.deepEqual(f.map((x) => x.term), ["<= 100 KiB"]);
     assert.deepEqual(judge(parseLimit("+1 B, +1%"), undefined, 1e9), []);
   });
 
   test("all failing terms are reported", () => {
     const f = judge(parseLimit("+1 KB, +1%, <= 10 KB"), 10 * KB, 20 * KB);
-    assert.deepEqual(f.map((x) => x.term), ["+1.00 KB", "+1%", "<= 10.00 KB"]);
+    assert.deepEqual(f.map((x) => x.term), ["+1 KiB", "+1%", "<= 10 KiB"]);
   });
 
   test("default rule: +2%", () => {
@@ -284,7 +295,6 @@ describe("lintRules", () => {
     const w = lintRules(c, ["/a"]);
     assert.equal(w.length, 1);
     assert.match(w[0]!, /rules\[1\] "\/a": unreachable, rules\[0\] pattern "\/\*\*" matches every route/);
-    // A longer pattern with "**" is not a catch-all.
     assert.deepEqual(lintRules({ rules: [rule(["/a/**"]), rule(["/a"])] }, ["/a"]), []);
   });
 

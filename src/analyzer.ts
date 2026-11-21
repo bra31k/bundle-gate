@@ -8,21 +8,16 @@ import { buildSnapshot, SnapshotError, type SnapshotInfo } from "./export.ts";
 import type { Snapshot } from "./types.ts";
 
 export interface AnalyzerOptions {
-  /** App directory (where `next` is installed and `next.config.*` lives). */
   dir: string;
-  /** Snapshot name, e.g. "base" or "head". */
   name: string;
-  /** Next `distDir`, relative to `dir`. Default ".next". */
   distDir?: string;
   appDirOnly?: boolean;
   noMangling?: boolean;
-  /** Shell command run in `dir` before the analyzer. */
   prepare?: string;
 }
 
 export interface AnalyzerResult {
   snapshot: Snapshot;
-  /** Absolute path of the analyzer folder (`<distDir>/diagnostics/analyze`). */
   analyzeDir: string;
 }
 
@@ -33,7 +28,6 @@ export interface AnalyzerMetadata {
   createdAt: string;
 }
 
-/** Absolute path of `next/dist/bin/next` as installed for `dir`. */
 export function resolveNext(dir: string): string {
   const require = createRequire(join(resolve(dir), "package.json"));
   let pkg: string;
@@ -47,7 +41,6 @@ export function resolveNext(dir: string): string {
   return bin;
 }
 
-/** Arguments for `next analyze` that write a named snapshot to disk. */
 export function analyzeArgs(next: string, opts: Pick<AnalyzerOptions, "name" | "appDirOnly" | "noMangling">): string[] {
   const args = [next, "analyze", "-o", "--snapshot", opts.name];
   if (opts.appDirOnly) args.push("--experimental-app-only");
@@ -55,24 +48,20 @@ export function analyzeArgs(next: string, opts: Pick<AnalyzerOptions, "name" | "
   return args;
 }
 
-/** Arguments for `next analyze export` of a named snapshot. */
 export function exportArgs(next: string, opts: Pick<AnalyzerOptions, "name" | "distDir">): string[] {
   const args = [next, "analyze", "export", "--snapshot", opts.name];
   if (opts.distDir !== undefined) args.push("--dist-dir", opts.distDir);
   return args;
 }
 
-/** Absolute analyzer folder of an app. */
 export function analyzeDirOf(dir: string, distDir?: string): string {
   return resolve(dir, distDir ?? ".next", "diagnostics", "analyze");
 }
 
-/** Path of the metadata.json Next writes for a named snapshot. */
 export function metadataPath(analyzeDir: string, name: string): string {
   return join(analyzeDir, "history", `snapshot-${encodeURIComponent(name)}`, "metadata.json");
 }
 
-/** Check the fields we need from a snapshot's metadata.json. */
 export function parseMetadata(text: string, path: string): AnalyzerMetadata {
   let value: unknown;
   try {
@@ -100,14 +89,12 @@ export function parseMetadata(text: string, path: string): AnalyzerMetadata {
   };
 }
 
-/** Run a git command in `dir`; undefined when git is missing or `dir` is not in a repository. */
 export function git(dir: string, args: string[]): string | undefined {
   const r = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   if (r.error !== undefined || r.status !== 0) return undefined;
   return r.stdout.trim();
 }
 
-/** Run a child process with stdout and stderr both forwarded to our stderr. */
 function runForwarded(command: string, args: string[], cwd: string, what: string): Promise<void> {
   return new Promise((done, fail) => {
     const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
@@ -121,7 +108,6 @@ function runForwarded(command: string, args: string[], cwd: string, what: string
   });
 }
 
-/** Stream `next analyze export` stdout into buildSnapshot. */
 function exportSnapshot(next: string, opts: AnalyzerOptions, dir: string, info: SnapshotInfo): Promise<Snapshot> {
   const child = spawn(process.execPath, exportArgs(next, opts), { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   let stderr = "";
@@ -139,7 +125,6 @@ function exportSnapshot(next: string, opts: AnalyzerOptions, dir: string, info: 
       }
     });
   });
-  // The exit promise may reject before buildSnapshot finishes; it is awaited below.
   exited.catch(() => {});
   const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
   return buildSnapshot(lines, info).then(
@@ -148,8 +133,6 @@ function exportSnapshot(next: string, opts: AnalyzerOptions, dir: string, info: 
       return snapshot;
     },
     async (e: unknown) => {
-      // Drain the rest so the child can finish; a failed export explains more
-      // than the parse error of its truncated output.
       child.stdout.resume();
       await exited;
       throw e;
@@ -157,7 +140,6 @@ function exportSnapshot(next: string, opts: AnalyzerOptions, dir: string, info: 
   );
 }
 
-/** Run the Next analyzer for `opts.dir` and turn its export into a bundle-gate snapshot. */
 export async function runAnalyzer(opts: AnalyzerOptions): Promise<AnalyzerResult> {
   const dir = resolve(opts.dir);
   const next = resolveNext(dir);

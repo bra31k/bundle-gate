@@ -50,7 +50,6 @@ test("edge fixture: basePath chunk names, async and ungrouped chunks", async () 
     async: [],
     other: [],
   });
-  // Server outputs never become chunks; shared x.js is stored once, parts merged per source.
   assert.deepEqual(Object.keys(s.chunks).sort(), [
     "docs/_next/static/chunks/lazy.js",
     "docs/_next/static/chunks/page.js",
@@ -144,7 +143,6 @@ test("two routes sharing a chunk store it once (probe base export)", async () =>
   assert.deepEqual(Object.keys(s.chunks).sort(), [...unique].sort());
   const shared = s.routes["/"]?.eager.filter((f) => s.routes["/about"]?.eager.includes(f)) ?? [];
   assert.ok(shared.length > 0);
-  // Every source key is unique and the probe has no async groups.
   assert.equal(new Set(s.sources).size, s.sources.length);
   for (const r of Object.values(s.routes)) assert.deepEqual(r.async, []);
 });

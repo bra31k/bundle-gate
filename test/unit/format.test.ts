@@ -37,9 +37,9 @@ test("text: header, failing route with rule and modules, footer", () => {
   const lines = text.split("\n");
   assert.equal(lines[0], "bundle-gate  Next 16.4.6 · eager client JS (gzip)");
   assert.equal(lines[1], "base 1111111 -> head 2222222");
-  assert.match(text, /^✗ \/about +167\.31 KB -> 191\.80 KB +\+24\.49 KB +\+14\.64%$/m);
-  assert.match(text, /^ {4}rule rules\[0\] "\/about": grew \+24\.49 KB, limit \+10\.00 KB$/m);
-  assert.match(text, /^ {4}\+ lodash +\+24\.39 KB$/m);
+  assert.match(text, /^✗ \/about +167\.3 KiB -> 191\.79 KiB +\+24\.49 KiB +\+14\.64%$/m);
+  assert.match(text, /^ {4}rule rules\[0\] "\/about": grew \+24\.49 KiB, limit \+10 KiB$/m);
+  assert.match(text, /^ {4}\+ lodash +\+24\.38 KiB$/m);
   assert.match(text, /^ {4}\+ app\/about\/page\.js +\+104 B$/m);
   assert.doesNotMatch(text, /\/reports/);
   assert.match(text, /^1 failed · 1 changed · 0 new · 0 removed · 2 unchanged \(2 hidden, --all shows them\)$/m);
@@ -48,16 +48,29 @@ test("text: header, failing route with rule and modules, footer", () => {
 
 test("text --all lists unchanged routes", () => {
   const text = formatText(result, { all: true });
-  assert.match(text, /^✓ \/reports +191\.81 KB -> 191\.80 KB +-9 B +-0\.00%$/m);
-  assert.match(text, /^✓ \/ +170\.01 KB -> 170\.01 KB +\+0 B +\+0\.00%$/m);
+  assert.match(text, /^✓ \/reports +191\.8 KiB -> 191\.79 KiB +-9 B +-0\.00%$/m);
+  assert.match(text, /^✓ \/ +170\.01 KiB -> 170\.01 KiB +\+0 B +\+0\.00%$/m);
   assert.match(text, /2 unchanged$/m);
 });
 
-test("text: exact bytes when the rounded delta equals the limit", () => {
-  const delta = 25078;
-  const r = diffSnapshots(base, head, parseConfig({ rules: [{ match: "/about", limit: `+${delta - 1} B` }] }));
+test("text: exact bytes when the printed head size equals the printed max-size", () => {
+  const headBytes = 196403;
+  const r = diffSnapshots(base, head, parseConfig({ rules: [{ match: "/about", limit: `<= ${headBytes - 1} B` }] }));
   const text = formatText(r, { all: false });
-  assert.match(text, /grew \+24\.49 KB, limit \+24\.49 KB \(exact: \+25078 B\)/);
+  assert.match(text, /size 191\.79 KiB, limit <= 191\.79 KiB \(exact: 196403 B\)/);
+});
+
+test("text: exact bytes when the printed growth equals the printed max-growth", () => {
+  const tiny = (name: string, gz: number): Snapshot => ({
+    schemaVersion: 1,
+    meta: { ...info(name, `${name}0000000`), analyzerSchemaVersion: 1 },
+    sources: ["app/page.js"],
+    chunks: { "page.js": [[0, gz * 3, gz]] },
+    routes: { "/": { eager: ["page.js"], async: [], other: [] } },
+  });
+  const r = diffSnapshots(tiny("base", 10000), tiny("head", 35105), parseConfig({ rules: [{ match: "/", limit: "+25100 B" }] }));
+  const text = formatText(r, { all: false });
+  assert.match(text, /grew \+24\.51 KiB, limit \+24\.51 KiB \(exact: \+25105 B\)/);
 });
 
 test("text: skipped prints only the reasons", () => {
@@ -77,10 +90,10 @@ test("markdown: route table, details per failing route, report note", () => {
   assert.match(md, /^\| \| Route \| Before \| After \| Delta \| % \| Rule \|$/m);
   assert.match(
     md,
-    /^\| ✗ \| `\/about` \| 167\.31 KB \| 191\.80 KB \| \+24\.49 KB \| \+14\.64% \| rules\[0\] "\/about": grew \+24\.49 KB, limit \+10\.00 KB \|$/m,
+    /^\| ✗ \| `\/about` \| 167\.3 KiB \| 191\.79 KiB \| \+24\.49 KiB \| \+14\.64% \| rules\[0\] "\/about": grew \+24\.49 KiB, limit \+10 KiB \|$/m,
   );
   assert.match(md, /<details><summary>✗ <code>\/about<\/code>: module changes<\/summary>/);
-  assert.match(md, /^\| `lodash` \| \+24\.39 KB \| 0 B \| 24\.39 KB \|$/m);
+  assert.match(md, /^\| `lodash` \| \+24\.38 KiB \| 0 B \| 24\.38 KiB \|$/m);
   assert.match(md, /<\/details>/);
   assert.match(md, /^Download the analyzer report artifact, then run `npx serve <folder>` and open the compare view\.$/m);
   assert.doesNotMatch(md, /<!--/);
@@ -100,9 +113,9 @@ test("new and removed routes in text and markdown", () => {
   delete (extra.routes as Record<string, unknown>)["/reports"];
   const r = diffSnapshots(base, extra, { rules: [] });
   const text = formatText(r, { all: false });
-  assert.match(text, /^✓ \/extra +- -> 191\.80 KB +new$/m);
-  assert.match(text, /^ {4}\+ lodash +24\.39 KB$/m);
-  assert.match(text, /^✓ \/reports +191\.81 KB -> + - +removed$/m);
+  assert.match(text, /^✓ \/extra +- -> 191\.79 KiB +new$/m);
+  assert.match(text, /^ {4}\+ lodash +24\.38 KiB$/m);
+  assert.match(text, /^✓ \/reports +191\.8 KiB -> + - +removed$/m);
   assert.match(text, /1 new · 1 removed/);
   const md = formatMarkdown(r, { all: false });
   assert.match(md, /<code>\/extra<\/code>: heaviest modules/);

@@ -45,7 +45,6 @@ before(async () => {
     join(dir, "next17.json"),
     await buildSnapshot(fixtureLines("export-head.jsonl"), info("head", "17.0.0")),
   );
-  // A page plus a route handler without client JS.
   const handler: Snapshot = {
     schemaVersion: 1,
     meta: { ...info("handler"), analyzerSchemaVersion: 1 },
@@ -129,7 +128,6 @@ test("errors exit 2 without a stack trace", () => {
   assert.equal(missing.code, 2);
   assert.match(missing.stderr, /^bundle-gate: .*nope\.json\.gz/);
   assert.doesNotMatch(missing.stderr, /\n\s+at /);
-  // --no-fail never hides an error.
   assert.equal(run(["diff", "nope.json.gz", "head.json.gz", "--no-fail"]).code, 2);
 
   const bad = run(["diff", "base.json.gz", "head.json.gz", "--config", "bad.json"]);
@@ -155,7 +153,7 @@ test("GitHub annotations and lint warnings", () => {
   assert.equal(r.code, 1);
   assert.match(r.stderr, /^warning: rules\[0\] pattern "\/nothing": matches no route$/m);
   assert.match(r.stderr, /^::warning::rules\[0\] pattern "\/nothing": matches no route$/m);
-  assert.match(r.stderr, /^::error::bundle-gate: \/about is over its limit \(default \(\+2%25\)\): grew \+24\.49 KB/m);
+  assert.match(r.stderr, /^::error::bundle-gate: \/about is over its limit \(default \(\+2%25\)\): grew \+24\.49 KiB/m);
   assert.equal(r.stderr.match(/^::error::/gm)?.length, 1);
   const local = run(["diff", "base.json.gz", "head.json.gz"]);
   assert.doesNotMatch(local.stderr, /::error::/);
@@ -172,7 +170,6 @@ test("--annotations sets the level of the per-route annotation", () => {
   const off = run(["diff", "base.json.gz", "head.json.gz", "--config", "lint.json", "--annotations", "off"], gh);
   assert.equal(off.code, 1);
   assert.doesNotMatch(off.stderr, /::error::|is over its limit/);
-  // Other warnings are unchanged.
   assert.match(off.stderr, /^::warning::rules\[0\] pattern "\/nothing": matches no route$/m);
 
   const error = run(["diff", "base.json.gz", "head.json.gz", "--annotations", "error"], gh);

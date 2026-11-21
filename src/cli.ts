@@ -52,7 +52,6 @@ const io = {
 
 const inActions = process.env.GITHUB_ACTIONS === "true";
 
-/** Escape a message for a GitHub workflow command. */
 function annotation(kind: "error" | "warning", message: string): string {
   const data = message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
   return `::${kind}::${data}`;

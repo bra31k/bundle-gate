@@ -52,7 +52,7 @@ Limits live in `bundle-gate.config.json` (or the file passed with `--config`). T
 
 Rules are checked in order and the first one that matches a route decides. A route that no rule matches gets the default rule, `+2%`.
 
-**`match`** is a route name or a list of them, as Next names routes (`/blog/[slug]`, not a real URL). `*` stands for exactly one path segment and `**` for zero or more. Everything else is literal, including `[`, `]` and `(`, so `/blog/[slug]` matches only that route.
+**`match`** is a route name or a list of them, as Next names routes (`/blog/[slug]`, not a real URL). Patterns use [picomatch](https://github.com/micromatch/picomatch) with brackets, braces, extglobs and negation turned off. `*` matches any characters inside one path segment (`/blog-*`), `**` matches zero or more segments (`/admin/**` also matches `/admin`), and `?` matches one character. Everything else is literal, including `[`, `]` and `(`, so `/blog/[slug]` matches only that route. A pattern without a leading `/` is rooted at `/`.
 
 **`limit`** is `"ignore"`, or one or more terms separated by commas. All terms must hold.
 
@@ -115,7 +115,12 @@ npx bundle-gate diff <base> <head> [--config <file>] [--format text|markdown|jso
 
 ## GitHub Action
 
-The action compares a pull request with the commit it would merge into. Head is the merge commit that `actions/checkout` fetches by default, and base is its first parent, so commits that landed on the base branch after the PR was opened do not count against it.
+The action starts from the merge commit that `actions/checkout` fetches for a pull request. That commit has two parents: the base branch tip and the PR's own latest commit. `base-mode` decides which commits are compared.
+
+- `merge-base` (default): head is the PR's latest commit and base is the point where the branch left the base branch. Later commits on the base branch never change the result.
+- `first-parent`: head is the merge commit and base is the base branch tip. This measures what would ship, and it catches interactions between the PR and newer base-branch commits. The result changes whenever the base branch moves.
+
+`merge-base` needs the full history (`fetch-depth: 0`). With a shallow checkout the action fetches the rest once, and skips with a warning if it still finds no merge base. `first-parent` only needs `fetch-depth: 2`.
 
 ```yaml
 name: Bundle size
@@ -132,7 +137,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -143,7 +148,7 @@ jobs:
           working-directory: apps/web
 ```
 
-The action installs `bundle-gate`, snapshots base in a separate worktree, snapshots head, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
+The action installs `bundle-gate`, snapshots base in a separate worktree, snapshots head, runs `diff` and writes the Markdown result to the job summary. In `merge-base` mode head also gets its own worktree; in `first-parent` mode it is built in the checkout. Both sides run in the same job with the same environment, and nothing is cached between runs.
 
 Inputs, all optional:
 
@@ -155,11 +160,12 @@ Inputs, all optional:
 | `prepare` | empty | Runs before each snapshot. Use it to generate files that exist only in your head checkout, such as `.env.production`. |
 | `dist-dir` | empty | The app's `distDir`, when it is not `.next`. |
 | `package` | `bundle-gate` | The npm spec to install, such as a version or a tarball path. |
+| `base-mode` | `merge-base` | `merge-base` or `first-parent`, see above. Any other value fails the job. |
 | `fail-on-breach` | `true` | Set to `false` to report breaches without failing the job. |
 
-Outputs: `breached` (`true` or `false`) and `exit-code` (the exit code of `diff`).
+Outputs: `breached` (`true` or `false`), `exit-code` (the exit code of `diff`), and `head-sha` and `base-sha` (the commits that were compared, empty when the action skipped).
 
-If the base commit cannot be analyzed, for example because it uses an older Next.js, the action prints a warning and succeeds without a check. The same happens when HEAD is not a merge commit or its first parent is missing. A failure on the head side, or a tool error, fails the job.
+If the base commit cannot be analyzed, for example because it uses an older Next.js, the action prints a warning and succeeds without a check. The same happens when HEAD is not a merge commit or a parent is missing. A failure on the head side, or a tool error, fails the job.
 
 ### Analyzer report
 
@@ -171,6 +177,7 @@ When a route is over its limit, the action uploads the head analyzer folder as t
 
 ## Limitations
 
+- The action needs the PR merge commit in both modes. It does not work on `push` events, or on pull requests with merge conflicts, because GitHub creates no merge commit for them.
 - Next.js 16.4 or newer, and the analyzer always compiles with Turbopack. If you ship a webpack build, the numbers describe a Turbopack build of the same code.
 - The analyzer is experimental. `bundle-gate` checks the export's `schema_version` and stops with an error when it changes.
 - Only eager client JavaScript and CSS are judged. Async chunks, server code and middleware are not.

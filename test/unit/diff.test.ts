@@ -20,7 +20,6 @@ function fixtureLines(name: string): AsyncIterable<string> {
   return createInterface({ input, crlfDelay: Infinity });
 }
 
-/** A hand-made snapshot: route -> list of [source, gz] parts in one eager chunk per route. */
 function snap(name: string, routes: Record<string, Array<[string, number]>>, meta: Partial<Snapshot["meta"]> = {}): Snapshot {
   const sources: string[] = [];
   const chunks: Snapshot["chunks"] = {};
@@ -73,7 +72,7 @@ test("fixtures: /about breaches its own rule, module deltas name lodash", () => 
   assert.equal(about.eager.head?.gz, 196403);
   assert.equal(about.failed, true);
   assert.equal(about.rule, 'rules[0] "/about"');
-  assert.deepEqual(about.failures, [{ term: "+10.00 KB", message: "grew +24.49 KB, limit +10.00 KB" }]);
+  assert.deepEqual(about.failures, [{ term: "+10 KiB", message: "grew +24.49 KiB, limit +10 KiB" }]);
   assert.deepEqual(
     about.modules?.map((m) => [m.source, m.gz]),
     [
@@ -95,7 +94,6 @@ test("fixtures: /about breaches its own rule, module deltas name lodash", () => 
   assert.equal(route(r, "/").eager.deltaGz, 0);
   assert.deepEqual(c.totals, { routes: 3, failed: 1, changed: 1, new: 0, removed: 0, unchanged: 2, noClient: 0 });
   assert.deepEqual(c.warnings, []);
-  // Plain JSON data.
   assert.deepEqual(JSON.parse(JSON.stringify(r)), r);
 });
 
@@ -135,8 +133,7 @@ test("new and removed routes", () => {
   assert.equal(added.kind, "new");
   assert.equal(added.eager.base, undefined);
   assert.equal(added.percent, null);
-  // Growth terms do not apply to a new route; the size term does.
-  assert.deepEqual(added.failures.map((f) => f.term), ["<= 4.88 KB"]);
+  assert.deepEqual(added.failures.map((f) => f.term), ["<= 4.88 KiB"]);
   assert.deepEqual(added.modules?.map((m) => [m.source, m.headGz]), [
     ["node_modules:react", 5000],
     ["app/new/page.js", 300],
@@ -164,7 +161,6 @@ test("minChange hides small changes but they are still judged with exact bytes",
   assert.equal(bad.kind, "unchanged");
   assert.equal(bad.failed, true);
   assert.deepEqual(bad.failures, [{ term: "+49 B", message: "grew +50 B, limit +49 B" }]);
-  // Module rows below minChange are dropped, also on a failing route.
   assert.deepEqual(bad.modules, []);
   assert.equal(compared(r).totals.unchanged, 1);
   assert.equal(compared(r).totals.failed, 1);
@@ -197,7 +193,6 @@ test("incomparable snapshots are skipped, not failed", () => {
 test("a route without client JS (route handler) is listed as no-client, never judged", () => {
   const b = snap("base", { "/": [["app/page.js", 1000]], "/api/health": [] });
   const h = snap("head", { "/": [["app/page.js", 1000]], "/api/health": [] });
-  // Even a rule that would fail any size does not judge it.
   const r = diffSnapshots(b, h, config([{ match: "/api/**", limit: "<= 0 B" }]));
   const c = compared(r);
   const api = route(r, "/api/health");
@@ -206,12 +201,10 @@ test("a route without client JS (route handler) is listed as no-client, never ju
   assert.deepEqual(api.failures, []);
   assert.equal(api.rule, undefined);
   assert.equal(api.percent, null);
-  // Never counted as zero: no eager size on either side.
   assert.deepEqual(api.eager, { deltaGz: 0 });
   assert.deepEqual(c.totals, { routes: 2, failed: 0, changed: 0, new: 0, removed: 0, unchanged: 1, noClient: 1 });
   assert.deepEqual(c.warnings, []);
 
-  // Only in one snapshot, still no-client (not new / removed).
   const added = diffSnapshots(snap("base", { "/": [["a", 1]] }), h, { rules: [] });
   assert.equal(route(added, "/api/health").kind, "no-client");
   assert.equal(compared(added).totals.new, 0);

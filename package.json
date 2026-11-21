@@ -42,6 +42,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/picomatch": "^4.0.3",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "picomatch": "^4.0.7",
+    "pretty-bytes": "^7.2.0"
   }
 }
