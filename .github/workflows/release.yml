@@ -17,6 +17,14 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - name: Ensure npm supports trusted publishing
+        run: |
+          current="$(npm --version)"
+          minimum="11.5.1"
+          if [ "$(printf '%s\n' "$minimum" "$current" | sort -V | head -n1)" != "$minimum" ]; then
+            npm install --global "npm@^$minimum"
+          fi
+          npm --version
       - run: npm ci
       - run: npm test
       - name: Check release tag matches package version
