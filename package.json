@@ -1,0 +1,39 @@
+{
+  "name": "bundle-gate",
+  "version": "0.0.0",
+  "description": "Gate Next.js route bundle size in CI using the artifacts of an existing build.",
+  "keywords": ["nextjs", "bundle-size", "ci", "performance-budget"],
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bra31k/bundle-gate.git"
+  },
+  "homepage": "https://github.com/bra31k/bundle-gate#readme",
+  "bugs": {
+    "url": "https://github.com/bra31k/bundle-gate/issues"
+  },
+  "bin": {
+    "bundle-gate": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "types": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}
