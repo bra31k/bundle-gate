@@ -7,5 +7,7 @@
     "declaration": true,
     "sourceMap": false
   },
-  "exclude": ["src/**/*.test.ts"]
+  "include": [
+    "src"
+  ]
 }

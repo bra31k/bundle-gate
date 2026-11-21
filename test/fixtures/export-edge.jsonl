@@ -1,0 +1,19 @@
+{"type":"meta","schema_version":1,"snapshot_name":"edge","module_index_hash":"0000000000000000","route_count":2,"selected_routes":2}
+{"type":"module","ident":"[project]/app/docs/page.js [app-client] (ecmascript)","path":"[project]/app/docs/page.js"}
+{"type":"route","route":"/docs","entries":[],"coverage":{}}
+{"type":"output","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/x.js","modules":[]}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[turbopack]/browser/runtime/base/runtime-base.ts","size":1000,"compressed_size":400}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[project]/node_modules/react-dom/client.js","size":50,"compressed_size":30}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/page.js","source_path":"[project]/app/docs/page.js","size":200,"compressed_size":120}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/lazy.js","source_path":"[project]/components/Chart.js","size":5000,"compressed_size":1800}
+{"type":"part","route":"/docs","filename":"[client-fs]/docs/_next/static/chunks/polyfill.js","source_path":"[client-fs]/docs/_next/static/chunks/polyfill.js","size":110000,"compressed_size":39000}
+{"type":"part","route":"/docs","filename":"[output]/.next/server/app/docs/page.js","source_path":"[project]/app/docs/page.js","size":900,"compressed_size":300}
+{"type":"group","route":"/docs","id":0,"kind":"bootstrap","trigger_module_ident":"[project]/node_modules/next/dist/client/app-next-turbopack.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/docs/_next/static/chunks/x.js"]}
+{"type":"group","route":"/docs","id":1,"kind":"async","trigger_module_ident":"[project]/components/Chart.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/docs/_next/static/chunks/lazy.js","[client-fs]/docs/_next/static/chunks/page.js"]}
+{"type":"group","route":"/docs","id":2,"kind":"render_dependent","trigger_module_ident":"[project]/app/docs/page.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/docs/_next/static/chunks/page.js","[client-fs]/docs/_next/static/chunks/x.js","[output]/.next/server/app/docs/page.js"]}
+{"type":"route","route":"/docs/guide","entries":[],"coverage":{}}
+{"type":"part","route":"/docs/guide","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[project]/node_modules/react-dom/client.js","size":50,"compressed_size":30}
+{"type":"part","route":"/docs/guide","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[turbopack]/browser/runtime/base/runtime-base.ts","size":1000,"compressed_size":400}
+{"type":"part","route":"/docs/guide","filename":"[client-fs]/docs/_next/static/chunks/x.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"group","route":"/docs/guide","id":0,"kind":"bootstrap","trigger_module_ident":"[project]/node_modules/next/dist/client/app-next-turbopack.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/docs/_next/static/chunks/x.js"]}
