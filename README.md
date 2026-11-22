@@ -134,11 +134,11 @@ jobs:
   bundle-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -147,7 +147,7 @@ jobs:
           working-directory: apps/web
 ```
 
-The action installs `bundle-gate`, snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
+The action installs the CLI version it was released with, so `uses: bra31k/bundle-gate@v0.1.2` always runs CLI 0.1.2. It snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
 
 Inputs, all optional:
 
@@ -158,7 +158,7 @@ Inputs, all optional:
 | `install-command` | `npm ci` | Installs dependencies, run in the app directory on both sides. Empty skips it. |
 | `prepare` | empty | Runs before each snapshot. Use it to generate files that exist only in your head checkout, such as `.env.production`. |
 | `dist-dir` | empty | The app's `distDir`, when it is not `.next`. |
-| `package` | `bundle-gate` | The npm spec to install, such as a version or a tarball path. |
+| `package` | `bundle-gate@0.1.2` | The CLI version released with this action. A version, a tarball path or any npm spec works. |
 | `fail-on-breach` | `true` | Set to `false` to report breaches without failing the job. |
 
 Outputs: `breached` (`true` or `false`), `exit-code` (the exit code of `diff`), and `head-sha` and `base-sha` (the commits that were compared, empty when the action skipped).

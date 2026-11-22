@@ -50,6 +50,10 @@
 name: bundle-gate
 description: Gate Next.js route bundle size by comparing a pull request with its base.
 
+branding:
+  icon: bar-chart-2
+  color: blue
+
 inputs:
   working-directory:
     description: Directory of the Next.js app, relative to the workspace or absolute.
@@ -72,9 +76,9 @@ inputs:
     required: false
     default: "npm ci"
   package:
-    description: npm spec of the bundle-gate package to install (a name, a version or a tarball path).
+    description: npm spec of the bundle-gate CLI to install. The default is the CLI version released together with this action; a tarball path or another version also works.
     required: false
-    default: "bundle-gate"
+    default: "bundle-gate@0.1.2"
   fail-on-breach:
     description: Fail the action when a route breaches its limit ("true" or "false"). Tool errors always fail it.
     required: false
@@ -333,7 +337,7 @@ runs:
 
     - name: Upload analyzer report
       if: steps.refs.outputs.skip != 'true' && steps.base.outputs.base-ok == 'true' && steps.diff.outputs.breached == 'true'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: bundle-gate-analyzer-report
         path: ${{ steps.refs.outputs.head-app }}/${{ inputs.dist-dir || '.next' }}/diagnostics/analyze
