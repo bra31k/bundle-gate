@@ -22,15 +22,15 @@ npx bundle-gate diff base.json.gz head.json.gz
 bundle-gate  Next 16.4.6 · eager client JS (gzip)
 base -> head
 
-✗ /about  167.31 KB -> 191.80 KB  +24.49 KB  +14.64%
-    rule default (+2%): grew +24.49 KB (+14.64%), limit +2%
-    + lodash             +24.39 KB
+✗ /about  167.3 KiB -> 191.79 KiB  +24.49 KiB  +14.64%
+    rule default (+2%): grew +24.49 KiB (+14.64%), limit +2%
+    + lodash             +24.38 KiB
     + app/about/page.js  +104 B
 
 1 failed · 1 changed · 0 new · 0 removed · 5 unchanged (5 hidden, --all shows them)
 ```
 
-Sizes are printed like the analyzer does: 1024-based units labelled `KB`, `MB`, `GB`.
+Sizes are printed in 1024-based units (`B`, `KiB`, `MiB`, `GiB`) with up to two decimals. The last digit is cut off, not rounded.
 
 ## What is measured
 
@@ -115,12 +115,11 @@ npx bundle-gate diff <base> <head> [--config <file>] [--format text|markdown|jso
 
 ## GitHub Action
 
-The action starts from the merge commit that `actions/checkout` fetches for a pull request. That commit has two parents: the base branch tip and the PR's own latest commit. `base-mode` decides which commits are compared.
+The action starts from the merge commit that `actions/checkout` fetches for a pull request. That commit has two parents: the base branch tip and the PR's own latest commit.
 
-- `merge-base` (default): head is the PR's latest commit and base is the point where the branch left the base branch. Later commits on the base branch never change the result.
-- `first-parent`: head is the merge commit and base is the base branch tip. This measures what would ship, and it catches interactions between the PR and newer base-branch commits. The result changes whenever the base branch moves.
+It compares the PR's latest commit (head) with the merge base, the point where the branch left the base branch. Commits that land on the base branch later never change the result, so the same PR gives the same numbers whenever it runs.
 
-`merge-base` needs the full history (`fetch-depth: 0`). With a shallow checkout the action fetches the rest once, and skips with a warning if it still finds no merge base. `first-parent` only needs `fetch-depth: 2`.
+The merge base needs the full history, so use `fetch-depth: 0` in `actions/checkout`. With a shallow checkout the action fetches the rest once, and skips with a warning if it still finds no merge base.
 
 ```yaml
 name: Bundle size
@@ -148,7 +147,7 @@ jobs:
           working-directory: apps/web
 ```
 
-The action installs `bundle-gate`, snapshots base in a separate worktree, snapshots head, runs `diff` and writes the Markdown result to the job summary. In `merge-base` mode head also gets its own worktree; in `first-parent` mode it is built in the checkout. Both sides run in the same job with the same environment, and nothing is cached between runs.
+The action installs `bundle-gate`, snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
 
 Inputs, all optional:
 
@@ -160,7 +159,6 @@ Inputs, all optional:
 | `prepare` | empty | Runs before each snapshot. Use it to generate files that exist only in your head checkout, such as `.env.production`. |
 | `dist-dir` | empty | The app's `distDir`, when it is not `.next`. |
 | `package` | `bundle-gate` | The npm spec to install, such as a version or a tarball path. |
-| `base-mode` | `merge-base` | `merge-base` or `first-parent`, see above. Any other value fails the job. |
 | `fail-on-breach` | `true` | Set to `false` to report breaches without failing the job. |
 
 Outputs: `breached` (`true` or `false`), `exit-code` (the exit code of `diff`), and `head-sha` and `base-sha` (the commits that were compared, empty when the action skipped).
@@ -177,7 +175,8 @@ When a route is over its limit, the action uploads the head analyzer folder as t
 
 ## Limitations
 
-- The action needs the PR merge commit in both modes. It does not work on `push` events, or on pull requests with merge conflicts, because GitHub creates no merge commit for them.
+- The action needs the PR merge commit that `actions/checkout` fetches. It does not work on `push` events, or on pull requests with merge conflicts, because GitHub creates no merge commit for them.
+- It does not catch problems that appear only when the PR is combined with newer commits on the base branch, because it compares against the merge base.
 - Next.js 16.4 or newer, and the analyzer always compiles with Turbopack. If you ship a webpack build, the numbers describe a Turbopack build of the same code.
 - The analyzer is experimental. `bundle-gate` checks the export's `schema_version` and stops with an error when it changes.
 - Only eager client JavaScript and CSS are judged. Async chunks, server code and middleware are not.

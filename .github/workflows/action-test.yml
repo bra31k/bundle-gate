@@ -221,39 +221,6 @@ jobs:
           done
           test "$found" = "yes" || { echo "artifact bundle-gate-analyzer-report not found" >&2; exit 1; }
 
-      # (b2) the same regression with base-mode first-parent. The artifact name is
-      # fixed and (b) already uploaded it, so a second upload in this run fails;
-      # the step is allowed to fail and only the outputs, which are set before
-      # the upload, and the commits it chose are asserted.
-      - name: Reset action output files
-        run: rm -f "$RUNNER_TEMP/bundle-gate.md" "$RUNNER_TEMP/base.json.gz" "$RUNNER_TEMP/head.json.gz"
-
-      - name: Regression PR, first-parent
-        id: regress-fp
-        continue-on-error: true
-        uses: ./
-        with:
-          working-directory: ${{ steps.repos.outputs.dir }}/regress/web
-          package: ${{ steps.pack.outputs.tarball }}
-          base-mode: first-parent
-          fail-on-breach: "false"
-
-      - name: Assert first-parent regression was detected
-        env:
-          BREACHED: ${{ steps.regress-fp.outputs.breached }}
-          EXIT_CODE: ${{ steps.regress-fp.outputs.exit-code }}
-          HEAD_SHA: ${{ steps.regress-fp.outputs.head-sha }}
-          BASE_SHA: ${{ steps.regress-fp.outputs.base-sha }}
-          REPO_DIR: ${{ steps.repos.outputs.dir }}/regress
-        run: |
-          set -euo pipefail
-          test "$BREACHED" = "true"
-          test "$EXIT_CODE" = "1"
-          test "$HEAD_SHA" = "$(git -C "$REPO_DIR" rev-parse HEAD)"
-          test "$BASE_SHA" = "$(git -C "$REPO_DIR" rev-parse HEAD^1)"
-          test -s "$RUNNER_TEMP/base.json.gz"
-          test -s "$RUNNER_TEMP/head.json.gz"
-
       # (c) same SHA twice: the branch commit is empty, so the delta must be zero.
       - name: Reset action output files
         run: rm -f "$RUNNER_TEMP/bundle-gate.md" "$RUNNER_TEMP/base.json.gz" "$RUNNER_TEMP/head.json.gz"
