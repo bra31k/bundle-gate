@@ -32,6 +32,7 @@ interface RouteState {
   async: string[];
   asyncSet: Set<string>;
   parts: Map<string, Fingerprint>;
+  seenParts: Set<string>;
 }
 
 interface ChunkBuild {
@@ -58,6 +59,7 @@ export async function buildSnapshot(
         async: [],
         asyncSet: new Set(),
         parts: new Map(),
+        seenParts: new Set(),
       };
       routes.set(route, state);
     }
@@ -155,6 +157,9 @@ export async function buildSnapshot(
         const file = filename.slice(CLIENT_PREFIX.length);
 
         const state = routeState(route);
+        const partKey = `${file}\0${sourcePath}\0${size}\0${gz}`;
+        if (state.seenParts.has(partKey)) break;
+        state.seenParts.add(partKey);
         let fp = state.parts.get(file);
         if (fp === undefined) {
           fp = { count: 0, raw: 0, gz: 0, hash: 0 };

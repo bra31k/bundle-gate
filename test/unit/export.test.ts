@@ -130,6 +130,49 @@ test("routes that disagree on a chunk's parts throw", async () => {
   );
 });
 
+test("repeated part records in the owner route count once", async () => {
+  const s = await buildSnapshot(fixtureLines("export-dup-parts.jsonl"), info);
+  assert.deepEqual(s.routes["/_not-found"], {
+    eager: ["_next/static/chunks/shared.js"],
+    async: [],
+    other: [],
+  });
+  assert.deepEqual(s.routes["/assets"], {
+    eager: ["_next/static/chunks/shared.js", "_next/static/chunks/page.js"],
+    async: [],
+    other: [],
+  });
+  const shared = s.chunks["_next/static/chunks/shared.js"]?.map(([i, raw, gz]) => [s.sources[i], raw, gz]);
+  assert.deepEqual(shared, [
+    ["(runtime)", 1000, 400],
+    ["node_modules:react-dom", 3000, 1000],
+    ["app/layout.js", 200, 120],
+  ]);
+});
+
+test("repeated part records in a non-owner route count once", async () => {
+  const s = await buildSnapshot(
+    [
+      meta,
+      group("/a", "bootstrap", ["shared.js"]),
+      part("/a", "shared.js", "[project]/app/x.js", 10, 5),
+      part("/a", "shared.js", "[project]/app/y.js", 20, 8),
+      group("/b", "bootstrap", ["shared.js"]),
+      part("/b", "shared.js", "[project]/app/y.js", 20, 8),
+      part("/b", "shared.js", "[project]/app/x.js", 10, 5),
+      part("/b", "shared.js", "[project]/app/y.js", 20, 8),
+      part("/b", "shared.js", "[project]/app/x.js", 10, 5),
+      part("/b", "shared.js", "[project]/app/y.js", 20, 8),
+    ],
+    info,
+  );
+  const shared = s.chunks["_next/static/chunks/shared.js"]?.map(([i, raw, gz]) => [s.sources[i], raw, gz]);
+  assert.deepEqual(shared, [
+    ["app/x.js", 10, 5],
+    ["app/y.js", 20, 8],
+  ]);
+});
+
 test("an unknown group kind throws", async () => {
   await assert.rejects(buildSnapshot([meta, group("/", "prefetch", [])], info), SnapshotError);
 });

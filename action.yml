@@ -78,7 +78,7 @@ inputs:
   package:
     description: npm spec of the bundle-gate CLI to install. The default is the CLI version released together with this action; a tarball path or another version also works.
     required: false
-    default: "bundle-gate@0.1.2"
+    default: "bundle-gate@0.1.3"
   fail-on-breach:
     description: Fail the action when a route breaches its limit ("true" or "false"). Tool errors always fail it.
     required: false

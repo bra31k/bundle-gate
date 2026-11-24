@@ -147,7 +147,7 @@ jobs:
           working-directory: apps/web
 ```
 
-The action installs the CLI version it was released with, so `uses: bra31k/bundle-gate@v0.1.2` always runs CLI 0.1.2. It snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
+The action installs the CLI version it was released with, so `uses: bra31k/bundle-gate@v0.1.3` always runs CLI 0.1.3. It snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
 
 Inputs, all optional:
 
@@ -158,7 +158,7 @@ Inputs, all optional:
 | `install-command` | `npm ci` | Installs dependencies, run in the app directory on both sides. Empty skips it. |
 | `prepare` | empty | Runs before each snapshot. Use it to generate files that exist only in your head checkout, such as `.env.production`. |
 | `dist-dir` | empty | The app's `distDir`, when it is not `.next`. |
-| `package` | `bundle-gate@0.1.2` | The CLI version released with this action. A version, a tarball path or any npm spec works. |
+| `package` | `bundle-gate@0.1.3` | The CLI version released with this action. A version, a tarball path or any npm spec works. |
 | `fail-on-breach` | `true` | Set to `false` to report breaches without failing the job. |
 
 Outputs: `breached` (`true` or `false`), `exit-code` (the exit code of `diff`), and `head-sha` and `base-sha` (the commits that were compared, empty when the action skipped).
