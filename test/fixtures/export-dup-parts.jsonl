@@ -1,0 +1,20 @@
+{"type":"meta","schema_version":1,"snapshot_name":"dup-parts","module_index_hash":"0000000000000000","route_count":2,"selected_routes":2}
+{"type":"module","ident":"[project]/app/assets/page.js [app-client] (ecmascript)","path":"[project]/app/assets/page.js"}
+{"type":"route","route":"/_not-found","entries":[],"coverage":{}}
+{"type":"output","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","modules":[]}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[turbopack]/browser/runtime/base/runtime-base.ts","size":1000,"compressed_size":400}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[turbopack]/browser/runtime/base/runtime-base.ts","size":1000,"compressed_size":400}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/app/layout.js","size":200,"compressed_size":120}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/app/layout.js","size":200,"compressed_size":120}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/app/layout.js","size":200,"compressed_size":120}
+{"type":"part","route":"/_not-found","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/app/layout.js","size":200,"compressed_size":120}
+{"type":"group","route":"/_not-found","id":0,"kind":"bootstrap","trigger_module_ident":"[project]/node_modules/next/dist/client/app-next-turbopack.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/_next/static/chunks/shared.js"]}
+{"type":"route","route":"/assets","entries":[],"coverage":{}}
+{"type":"part","route":"/assets","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/app/layout.js","size":200,"compressed_size":120}
+{"type":"part","route":"/assets","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[turbopack]/browser/runtime/base/runtime-base.ts","size":1000,"compressed_size":400}
+{"type":"part","route":"/assets","filename":"[client-fs]/_next/static/chunks/shared.js","source_path":"[project]/node_modules/react-dom/cjs/react-dom-client.production.js","size":3000,"compressed_size":1000}
+{"type":"part","route":"/assets","filename":"[client-fs]/_next/static/chunks/page.js","source_path":"[project]/app/assets/page.js","size":500,"compressed_size":250}
+{"type":"group","route":"/assets","id":0,"kind":"bootstrap","trigger_module_ident":"[project]/node_modules/next/dist/client/app-next-turbopack.js [app-client] (ecmascript)","trigger_join":"joined","outputs":["[client-fs]/_next/static/chunks/shared.js","[client-fs]/_next/static/chunks/page.js"]}
