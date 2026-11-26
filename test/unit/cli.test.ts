@@ -89,7 +89,7 @@ test("breach exits 1 and prints the text report", () => {
   const r = run(["diff", "base.json.gz", "head.json.gz"]);
   assert.equal(r.code, 1);
   assert.match(r.stdout, /^✗ \/about /m);
-  assert.match(r.stdout, /rule default \(\+2%\)/);
+  assert.match(r.stdout, /^✗ \/about .* {2}limit \+2%$/m);
   assert.equal(r.stderr, "");
 });
 
@@ -97,7 +97,7 @@ test("--no-fail exits 0, an ignore rule passes", () => {
   assert.equal(run(["diff", "base.json.gz", "head.json.gz", "--no-fail"]).code, 0);
   const r = run(["diff", "base.json.gz", "head.json.gz", "--config", "ignore.json"]);
   assert.equal(r.code, 0);
-  assert.match(r.stdout, /0 failed/);
+  assert.match(r.stdout, /^✓ bundle-gate: all routes within limits$/m);
 });
 
 test("the default config file is picked up from the working directory", async () => {
@@ -119,8 +119,25 @@ test("--format json to stdout, --output writes the file and prints text", async 
 
   const o = run(["diff", "base.json.gz", "head.json.gz", "--format", "markdown", "--output", "out.md"]);
   assert.equal(o.code, 1);
-  assert.match(o.stdout, /^bundle-gate {2}Next 16\.4\.6/);
-  assert.match(await readFile(join(dir, "out.md"), "utf8"), /^### bundle-gate: ✗ 1 route over the limit/);
+  assert.match(o.stdout, /^✗ bundle-gate: 1 route over the limit\n {2}Next 16\.4\.6/);
+  assert.match(await readFile(join(dir, "out.md"), "utf8"), /^### ❌ bundle-gate: 1 route over the limit/);
+});
+
+test("--json writes the JSON result next to the markdown file", async () => {
+  const r = run(["diff", "base.json.gz", "head.json.gz", "--format", "markdown", "--output", "out.md", "--json", "out.json"]);
+  assert.equal(r.code, 1);
+  const json = run(["diff", "base.json.gz", "head.json.gz", "--format", "json"]).stdout;
+  assert.equal(await readFile(join(dir, "out.json"), "utf8"), json);
+  assert.match(await readFile(join(dir, "out.md"), "utf8"), /^### ❌ bundle-gate/);
+});
+
+test("text in a file or a pipe has no color codes", async () => {
+  const r = run(["diff", "base.json.gz", "head.json.gz", "--output", "out.txt"], { FORCE_COLOR: "1" });
+  assert.equal(r.code, 1);
+  assert.ok(!r.stdout.includes("\u001b["));
+  const file = await readFile(join(dir, "out.txt"), "utf8");
+  assert.ok(!file.includes("\u001b["));
+  assert.equal(file, r.stdout);
 });
 
 test("errors exit 2 without a stack trace", () => {
@@ -153,7 +170,7 @@ test("GitHub annotations and lint warnings", () => {
   assert.equal(r.code, 1);
   assert.match(r.stderr, /^warning: rules\[0\] pattern "\/nothing": matches no route$/m);
   assert.match(r.stderr, /^::warning::rules\[0\] pattern "\/nothing": matches no route$/m);
-  assert.match(r.stderr, /^::error::bundle-gate: \/about is over its limit \(default \(\+2%25\)\): grew \+24\.49 KiB/m);
+  assert.match(r.stderr, /^::error::bundle-gate: \/about is over its limit: grew \+24\.49 KiB/m);
   assert.equal(r.stderr.match(/^::error::/gm)?.length, 1);
   const local = run(["diff", "base.json.gz", "head.json.gz"]);
   assert.doesNotMatch(local.stderr, /::error::/);
@@ -180,7 +197,7 @@ test("a route handler without client JS passes", () => {
   const r = run(["diff", "handler.json.gz", "handler.json.gz"]);
   assert.equal(r.code, 0);
   assert.equal(r.stderr, "");
-  assert.match(r.stdout, /^0 failed · 0 changed · 0 new · 0 removed · 1 unchanged .*· 1 route without client JS \(not gated\)$/m);
+  assert.match(r.stdout, /^2 routes: 1 unchanged · 1 without client JS$/m);
   assert.doesNotMatch(r.stdout, /\/api\/health/);
   const json = JSON.parse(run(["diff", "handler.json.gz", "handler.json.gz", "--format", "json"]).stdout);
   assert.equal(json.status, "compared");

@@ -1,6 +1,6 @@
 {
   "name": "bundle-gate",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Gate Next.js route bundle size in CI using the artifacts of an existing build.",
   "keywords": [
     "nextjs",

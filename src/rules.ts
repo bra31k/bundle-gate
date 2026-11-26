@@ -10,6 +10,7 @@ export class ConfigError extends Error {
 }
 
 export interface Failure {
+  kind: Term["kind"];
   term: string;
   message: string;
 }
@@ -136,7 +137,7 @@ export function judge(limit: Limit, base: number | undefined, head: number): Fai
     if (t.kind === "max-size") {
       if (head > t.maxBytes) {
         const term = `<= ${formatBytes(t.maxBytes)}`;
-        failures.push({ term, message: `size ${formatBytes(head)}, limit ${term}` });
+        failures.push({ kind: t.kind, term, message: `size ${formatBytes(head)}, limit ${term}` });
       }
       continue;
     }
@@ -145,14 +146,14 @@ export function judge(limit: Limit, base: number | undefined, head: number): Fai
     if (t.kind === "growth") {
       if (growth > t.maxBytes) {
         const term = `+${formatBytes(t.maxBytes)}`;
-        failures.push({ term, message: `grew ${formatDelta(growth)}, limit ${term}` });
+        failures.push({ kind: t.kind, term, message: `grew ${formatDelta(growth)}, limit ${term}` });
       }
     } else {
       const fails = growth > 0 && growth * 100000 > base * Math.round(t.maxPercent * 1000);
       if (fails) {
         const term = `+${t.maxPercent}%`;
         const pct = base > 0 ? ` (+${((growth / base) * 100).toFixed(2)}%)` : "";
-        failures.push({ term, message: `grew ${formatDelta(growth)}${pct}, limit ${term}` });
+        failures.push({ kind: t.kind, term, message: `grew ${formatDelta(growth)}${pct}, limit ${term}` });
       }
     }
   }

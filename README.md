@@ -19,22 +19,22 @@ npx bundle-gate diff base.json.gz head.json.gz
 `snapshot` does not need `next build`. It runs `next analyze` itself, which takes about a second on a small app.
 
 ```text
-bundle-gate  Next 16.4.6 · eager client JS (gzip)
-base -> head
+✗ bundle-gate: 1 route over the limit
+  Next 16.4.6 · eager client JS, gzip · base → head
 
-✗ /about  167.3 KiB -> 191.79 KiB  +24.49 KiB  +14.64%
-    rule default (+2%): grew +24.49 KiB (+14.64%), limit +2%
-    + lodash             +24.38 KiB
-    + app/about/page.js  +104 B
+Over the limit
+✗ /about  167.3 KiB → 191.79 KiB  +24.49 KiB  +14.64%  limit +2%
+    lodash             +24.38 KiB
+    app/about/page.js      +104 B
 
-1 failed · 1 changed · 0 new · 0 removed · 5 unchanged (5 hidden, --all shows them)
+3 routes: 1 changed · 2 unchanged
 ```
 
 Sizes are printed in 1024-based units (`B`, `KiB`, `MiB`, `GiB`) with up to two decimals. The last digit is cut off, not rounded.
 
 ## What is measured
 
-For each route, the gzip size of the client chunks it loads eagerly (JavaScript and CSS), as reported by `next analyze`. Chunks that load later through `next/dynamic` or `import()` are listed as async and never judged. Routes with no client code, such as route handlers, are listed as "without client JS" and never judged.
+For each route, the gzip size of the client chunks it loads eagerly (JavaScript and CSS), as reported by `next analyze`. Chunks that load later through `next/dynamic` or `import()` are counted separately as async and never judged. Routes with no client code, such as route handlers, are counted as "without client JS" and never judged.
 
 ## Config
 
@@ -64,7 +64,7 @@ Rules are checked in order and the first one that matches a route decides. A rou
 
 Sizes accept `B`, `KB`, `KiB`, `MB`, `MiB`, `GB` and `GiB`, all 1024-based. A number without a unit is an error. Percentages are compared on exact bytes.
 
-A route that is new in the change is judged only by `<=` terms, since it has nothing to grow from. A removed route is reported and never fails. A route that shrinks never fails.
+A route that is new in the change is judged only by `<=` terms, since it has nothing to grow from. A removed route is counted as removed and never fails. A route that shrinks never fails.
 
 Unknown keys, bad units and bad terms are errors. `diff` warns about rules that can never apply: a rule after a `**` catch-all, and a pattern that matches no route in either snapshot.
 
@@ -92,18 +92,30 @@ Runs `next analyze` in the app directory, reads its export and writes a small sn
 
 ```sh
 npx bundle-gate diff <base> <head> [--config <file>] [--format text|markdown|json]
-                     [--output <file>] [--top <n>] [--min-change <size>]
-                     [--all] [--no-fail] [--annotations error|warning|off]
+                     [--output <file>] [--json <file>] [--top <n>]
+                     [--min-change <size>] [--all] [--no-fail]
+                     [--annotations error|warning|off]
 ```
 
 - `--format`: `text` (default), `markdown` or `json`. With `--output`, the formatted result goes to the file and a text summary still goes to stdout.
-- `--top`: module rows per failing route. Default 5.
-- `--min-change`: differences below this size are shown as unchanged. They are still judged on exact bytes. Default `100 B`.
-- `--all`: also list unchanged routes.
+- `--json`: also write the JSON result to this file, with any `--format`.
+- `--top`: rows in each module list (eager and async, for each route), in every format, including JSON. Default 10.
+- `--min-change`: changes below this size are counted as unchanged, so a smaller decrease is not shown as smaller. Module lists of routes that exist on both sides leave such modules out. Limits are still judged on exact bytes. Default `100 B`.
+- `--all`: also list unchanged routes and routes without client JS. The "Other changes" group is then named "All other routes". Text output also shows module lists under every route that has them, not only under failing ones.
 - `--no-fail`: exit 0 even when a route is over its limit. Errors still exit 2.
 - `--annotations`: the GitHub Actions annotation level for failing routes. Default `error`. Only used when `GITHUB_ACTIONS=true`.
 
 `diff` skips the comparison, with a warning and exit code 0, when the two snapshots cannot be compared: different Next.js versions, different analyzer flags or a different analyzer format.
+
+### Report
+
+Text and Markdown reports start with the result, show routes in three groups and count all routes. The groups are routes over the limit, smaller routes (unless over a limit or ignored) and other changes, such as growth within the limit, new and removed routes, and async-only changes. Empty groups are left out. Markdown shows the first two as alert blocks and the third as a table.
+
+Text output lists modules under failing routes. It is colored only on a terminal, and `NO_COLOR` turns the color off. Files get plain text.
+
+Markdown keeps the eager and async module lists of changed routes in one collapsed block. GitHub limits a job summary to 1 MiB per step. If your report gets close to that, lower `--top` when you run the CLI yourself. The action has no input for it.
+
+The JSON result has a `kind` in each item of `failures` (`growth`, `growth-percent` or `max-size`). A route with client JS also has `asyncModules` and `asyncModulesHidden` when it is new, or when it exists on both sides and its async size changed by at least `--min-change`.
 
 ### Exit codes
 
@@ -147,7 +159,7 @@ jobs:
           working-directory: apps/web
 ```
 
-The action installs the CLI version it was released with, so `uses: bra31k/bundle-gate@v0.1.3` always runs CLI 0.1.3. It snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
+The action installs the CLI version it was released with, so `uses: bra31k/bundle-gate@v0.2.0` always runs CLI 0.2.0. It snapshots base and head, each in its own git worktree, runs `diff` and writes the Markdown result to the job summary. Both sides run in the same job with the same environment, and nothing is cached between runs.
 
 Inputs, all optional:
 
@@ -158,7 +170,7 @@ Inputs, all optional:
 | `install-command` | `npm ci` | Installs dependencies, run in the app directory on both sides. Empty skips it. |
 | `prepare` | empty | Runs before each snapshot. Use it to generate files that exist only in your head checkout, such as `.env.production`. |
 | `dist-dir` | empty | The app's `distDir`, when it is not `.next`. |
-| `package` | `bundle-gate@0.1.3` | The CLI version released with this action. A version, a tarball path or any npm spec works. |
+| `package` | `bundle-gate@0.2.0` | The CLI version released with this action. A version, a tarball path or any npm spec works. |
 | `fail-on-breach` | `true` | Set to `false` to report breaches without failing the job. |
 
 Outputs: `breached` (`true` or `false`), `exit-code` (the exit code of `diff`), and `head-sha` and `base-sha` (the commits that were compared, empty when the action skipped).
@@ -182,7 +194,7 @@ When a route is over its limit, the action uploads the head analyzer folder as t
 - Only eager client JavaScript and CSS are judged. Async chunks, server code and middleware are not.
 - Routes are matched by name. A renamed route shows up as one removed and one new route, and only `<=` limits apply to it.
 - Snapshots from different Next.js versions are not compared.
-- Small shifts happen between builds even when a route's code did not change, mostly from chunk reshuffling. Use `--min-change` to hide them in the output.
+- Small shifts happen between builds even when a route's code did not change, mostly from chunk reshuffling. Use `--min-change` to count them as unchanged.
 
 ## Development
 

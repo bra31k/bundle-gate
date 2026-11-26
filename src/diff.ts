@@ -43,6 +43,8 @@ export interface RouteDiff {
   failures: Failure[];
   modules?: ModuleRow[];
   modulesHidden?: number;
+  asyncModules?: ModuleRow[];
+  asyncModulesHidden?: number;
 }
 
 export interface DiffTotals {
@@ -134,7 +136,7 @@ function toRow(d: { source: string; gz: number; raw: number; baseGz: number; hea
 
 export function diffSnapshots(base: Snapshot, head: Snapshot, config: Config, opts: DiffOptions = {}): DiffResult {
   const minChange = opts.minChange ?? 100;
-  const top = opts.top ?? 5;
+  const top = opts.top ?? 10;
   const names = [...new Set([...Object.keys(base.routes), ...Object.keys(head.routes)])].sort();
   const warnings = lintRules(config, names);
 
@@ -201,6 +203,9 @@ export function diffSnapshots(base: Snapshot, head: Snapshot, config: Config, op
       entry.kind = "new";
       const heaviest = diffModules(new Map(), routeModules(head, route, "eager")).map(toRow);
       Object.assign(entry, rows(heaviest, top));
+      const heaviestAsync = rows(diffModules(new Map(), routeModules(head, route, "async")).map(toRow), top);
+      entry.asyncModules = heaviestAsync.modules;
+      entry.asyncModulesHidden = heaviestAsync.modulesHidden;
     } else {
       const delta = h.eager.gz - b.eager.gz;
       entry.kind = Math.abs(delta) < minChange ? "unchanged" : "changed";
@@ -210,6 +215,14 @@ export function diffSnapshots(base: Snapshot, head: Snapshot, config: Config, op
           .filter((m) => Math.abs(m.gz) >= minChange)
           .map(toRow);
         Object.assign(entry, rows(deltas, top));
+      }
+      if (Math.abs(entry.async.deltaGz) >= minChange) {
+        const deltas = diffModules(routeModules(base, route, "async"), routeModules(head, route, "async"))
+          .filter((m) => Math.abs(m.gz) >= minChange)
+          .map(toRow);
+        const changed = rows(deltas, top);
+        entry.asyncModules = changed.modules;
+        entry.asyncModulesHidden = changed.modulesHidden;
       }
     }
     routes.push(entry);
