@@ -268,6 +268,11 @@ describe("judge", () => {
     assert.deepEqual(f.map((x) => x.term), ["+1 KiB", "+1%", "<= 10 KiB"]);
   });
 
+  test("each failure names the kind of its term", () => {
+    const f = judge(parseLimit("+1 KB, +1%, <= 10 KB"), 10 * KB, 20 * KB);
+    assert.deepEqual(f.map((x) => x.kind), ["growth", "growth-percent", "max-size"]);
+  });
+
   test("default rule: +2%", () => {
     const { limit } = resolveRule({ rules: [] }, "/x");
     assert.deepEqual(judge(limit, 100_000, 102_000), []);

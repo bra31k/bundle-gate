@@ -72,7 +72,7 @@ test("fixtures: /about breaches its own rule, module deltas name lodash", () => 
   assert.equal(about.eager.head?.gz, 196403);
   assert.equal(about.failed, true);
   assert.equal(about.rule, 'rules[0] "/about"');
-  assert.deepEqual(about.failures, [{ term: "+10 KiB", message: "grew +24.49 KiB, limit +10 KiB" }]);
+  assert.deepEqual(about.failures, [{ kind: "growth", term: "+10 KiB", message: "grew +24.49 KiB, limit +10 KiB" }]);
   assert.deepEqual(
     about.modules?.map((m) => [m.source, m.gz]),
     [
@@ -118,6 +118,74 @@ test("top limits module rows and counts the rest", () => {
   assert.equal(about.modulesHidden, 1);
 });
 
+test("top defaults to 10 module rows", () => {
+  const parts = Array.from({ length: 12 }, (_, i): [string, number] => [`m${i}`, 1000 + i]);
+  const added = route(diffSnapshots(snap("base", { "/": [["a", 1]] }), snap("head", { "/": [["a", 1]], "/new": parts }), { rules: [] }), "/new");
+  assert.equal(added.modules?.length, 10);
+  assert.equal(added.modulesHidden, 2);
+});
+
+test("async modules: changed async, heaviest for new routes, none for removed and no-client", () => {
+  const addAsync = (s: Snapshot, routeName: string, parts: Array<[string, number]>): Snapshot => {
+    const file = `async${routeName.replace(/\W/g, "_")}.js`;
+    const sources = [...s.sources];
+    const chunk = parts.map(([source, gz]): [number, number, number] => {
+      let idx = sources.indexOf(source);
+      if (idx === -1) idx = sources.push(source) - 1;
+      return [idx, gz * 3, gz];
+    });
+    return {
+      ...s,
+      sources,
+      chunks: { ...s.chunks, [file]: chunk },
+      routes: { ...s.routes, [routeName]: { ...s.routes[routeName]!, async: [file] } },
+    };
+  };
+  let b = snap("base", {
+    "/": [["app/page.js", 1000]],
+    "/small": [["app/small/page.js", 1000]],
+    "/old": [["app/old/page.js", 500]],
+    "/api": [],
+  });
+  b = addAsync(b, "/", [["editor", 2000], ["toolbar", 300], ["tiny", 50]]);
+  b = addAsync(b, "/small", [["lazy", 1000]]);
+  b = addAsync(b, "/old", [["lazy", 1000]]);
+  let h = snap("head", {
+    "/": [["app/page.js", 1000]],
+    "/small": [["app/small/page.js", 1000]],
+    "/new": [["app/new/page.js", 300]],
+    "/api": [],
+  });
+  h = addAsync(h, "/", [["editor", 2500], ["toolbar", 600], ["tiny", 60], ["chart", 400]]);
+  h = addAsync(h, "/small", [["lazy", 1050]]);
+  h = addAsync(h, "/new", [["small", 50], ["big", 5000], ["mid", 700]]);
+  h = addAsync(h, "/api", [["handler", 900]]);
+  const r = diffSnapshots(b, h, { rules: [] }, { top: 2 });
+
+  const root = route(r, "/");
+  assert.equal(root.kind, "unchanged");
+  assert.equal(root.async.deltaGz, 1210);
+  assert.deepEqual(root.asyncModules?.map((m) => [m.source, m.gz, m.baseGz, m.headGz]), [
+    ["editor", 500, 2000, 2500],
+    ["chart", 400, 0, 400],
+  ]);
+  assert.equal(root.asyncModulesHidden, 1);
+  assert.equal(root.modules, undefined);
+
+  const added = route(r, "/new");
+  assert.deepEqual(added.asyncModules?.map((m) => [m.source, m.headGz]), [
+    ["big", 5000],
+    ["mid", 700],
+  ]);
+  assert.equal(added.asyncModulesHidden, 1);
+
+  assert.equal(route(r, "/small").asyncModules, undefined);
+  assert.equal(route(r, "/old").asyncModules, undefined);
+  assert.equal(route(r, "/old").asyncModulesHidden, undefined);
+  assert.equal(route(r, "/api").kind, "no-client");
+  assert.equal(route(r, "/api").asyncModules, undefined);
+});
+
 test("new and removed routes", () => {
   const b = snap("base", { "/": [["app/page.js", 1000]], "/old": [["app/old/page.js", 500]] });
   const h = snap("head", {
@@ -160,7 +228,7 @@ test("minChange hides small changes but they are still judged with exact bytes",
   const bad = route(r, "/");
   assert.equal(bad.kind, "unchanged");
   assert.equal(bad.failed, true);
-  assert.deepEqual(bad.failures, [{ term: "+49 B", message: "grew +50 B, limit +49 B" }]);
+  assert.deepEqual(bad.failures, [{ kind: "growth", term: "+49 B", message: "grew +50 B, limit +49 B" }]);
   assert.deepEqual(bad.modules, []);
   assert.equal(compared(r).totals.unchanged, 1);
   assert.equal(compared(r).totals.failed, 1);

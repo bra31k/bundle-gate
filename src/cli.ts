@@ -32,9 +32,10 @@ diff options:
   --config <file>      rules file (default: ${DEFAULT_CONFIG} if it exists)
   --format <f>         text | markdown | json (default: text)
   --output <file>      write the formatted result to a file (text still goes to stdout)
-  --top <n>            module rows per route (default: 5)
-  --min-change <size>  smaller changes are shown as unchanged (default: 100 B)
-  --all                also list unchanged routes
+  --json <file>        also write the JSON result to a file
+  --top <n>            module rows per list (default: 10)
+  --min-change <size>  smaller changes are counted as unchanged (default: 100 B)
+  --all                list every route and the modules of every changed route
   --no-fail            exit 0 even when a route is over its limit
   --annotations <l>    GitHub annotation per failing route: error | warning | off (default: error)
 
@@ -123,10 +124,10 @@ async function loadConfig(path: string | undefined): Promise<Config> {
   }
 }
 
-function render(result: DiffResult, format: string, all: boolean): string {
+function render(result: DiffResult, format: string, all: boolean, color: boolean): string {
   if (format === "markdown") return formatMarkdown(result, { all });
   if (format === "json") return formatJson(result);
-  return formatText(result, { all });
+  return formatText(result, { all, color });
 }
 
 async function diffCommand(args: string[]): Promise<number> {
@@ -134,6 +135,7 @@ async function diffCommand(args: string[]): Promise<number> {
     config: { type: "string" },
     format: { type: "string" },
     output: { type: "string" },
+    json: { type: "string" },
     top: { type: "string" },
     all: { type: "boolean" },
     "no-fail": { type: "boolean" },
@@ -155,7 +157,7 @@ async function diffCommand(args: string[]): Promise<number> {
   if (level !== "error" && level !== "warning" && level !== "off") {
     throw new UsageError(`--annotations must be error, warning or off, got "${level}"`);
   }
-  let top = 5;
+  let top = 10;
   if (values.top !== undefined) {
     if (!/^\d+$/.test(values.top)) throw new UsageError(`--top must be a whole number, got "${values.top}"`);
     top = Number(values.top);
@@ -181,15 +183,17 @@ async function diffCommand(args: string[]): Promise<number> {
     for (const r of result.routes) {
       if (!r.failed) continue;
       const why = r.failures.map((f) => f.message).join("; ");
-      io.err(annotation(level, `bundle-gate: ${r.route} is over its limit (${r.rule}): ${why}`));
+      io.err(annotation(level, `bundle-gate: ${r.route} is over its limit: ${why}`));
     }
   }
 
+  const color = process.stdout.isTTY === true && process.stdout.hasColors();
+  if (values.json !== undefined) await writeFile(values.json, formatJson(result));
   if (values.output !== undefined) {
-    await writeFile(values.output, render(result, format, all));
-    io.out(formatText(result, { all }));
+    await writeFile(values.output, render(result, format, all, false));
+    io.out(formatText(result, { all, color }));
   } else {
-    io.out(render(result, format, all));
+    io.out(render(result, format, all, color));
   }
 
   const breached = result.status === "compared" && result.totals.failed > 0;
